@@ -1,77 +1,56 @@
 
 import os
-from openai import OpenAI #需要安装库pip install openai
-import google.generativeai as genai #需要安装库pip install -U google-generativeai
-import anthropic #需要安装库pip install anthropic
-import cohere  #需要安装库pip install cohere
 
+import cohere  # 需要安装库pip install cohere
+import anthropic # 需要安装库pip install anthropic
+import google.generativeai as genai # 需要安装库pip install -U google-generativeai
 
+from rich import print
+from openai import OpenAI # 需要安装库pip install openai
 
 # 接口测试器
 class Request_Tester():
+
     def __init__(self):
         pass
 
     # 接口测试分发
-    def request_test(self,user_interface_prompter,platform,base_url,model_type,api_key_str,proxy_port):
+    def request_test(self, user_interface_prompter, tag, api_url, model, api_key, proxy, api_format, auto_complete):
+        # 获取接口地址并补齐，v3 结尾是火山，v4 结尾是智谱
+        if tag == "sakura" and not api_url.endswith("/v1"):
+            api_url = api_url + "/v1"
+        elif auto_complete == True and not api_url.endswith("/v1") and not api_url.endswith("/v3") and not api_url.endswith("/v4"):
+            api_url = api_url + "/v1"
+        else:
+            api_url = api_url
 
-        # 执行openai接口测试
-        if platform == "OpenAI":
-            Request_Tester.openai_request_test(self,user_interface_prompter,base_url,model_type,api_key_str,proxy_port)
+        # 设置或取消代理
+        if proxy == "":
+            os.environ.pop("http_proxy", None)
+            os.environ.pop("https_proxy", None)
+        else:
+            os.environ["http_proxy"] = proxy
+            os.environ["https_proxy"] = proxy
+            print(f"[[green]INFO[/]] 系统代理已启用，代理地址：{proxy}")
 
-        # 执行google接口测试
-        elif platform == "Google":
-            Request_Tester.google_request_test(self,user_interface_prompter,base_url,model_type,api_key_str,proxy_port)
-
-        # 执行anthropic接口测试
-        elif platform == "Anthropic":
-            Request_Tester.anthropic_request_test(self,user_interface_prompter,base_url,model_type,api_key_str,proxy_port)
-
-        # 执行cohere接口测试
-        elif platform == "Cohere":
-            Request_Tester.cohere_request_test(self,user_interface_prompter,base_url,model_type,api_key_str,proxy_port)
-
-        # 执行智谱接口测试
-        elif platform == "Zhipu":
-            Request_Tester.openai_request_test(self,user_interface_prompter,base_url,model_type,api_key_str,proxy_port)
-
-        # 执行零一万物接口测试
-        elif platform == "Yi":
-            Request_Tester.openai_request_test(self,user_interface_prompter,base_url,model_type,api_key_str,proxy_port)
-
-        # 执行月之暗面接口测试
-        elif platform == "Moonshot":
-            Request_Tester.openai_request_test(self,user_interface_prompter,base_url,model_type,api_key_str,proxy_port)
-
-        # 执行Deepseek接口测试
-        elif platform == "Deepseek":
-            Request_Tester.openai_request_test(self,user_interface_prompter,base_url,model_type,api_key_str,proxy_port)
-
-        # 执行Dashscope接口测试
-        elif platform == "Dashscope":
-            Request_Tester.openai_request_test(self,user_interface_prompter,base_url,model_type,api_key_str,proxy_port)
-
-        # 执行Volcengine接口测试
-        elif platform == "Volcengine":
-            Request_Tester.openai_request_test(self,user_interface_prompter,base_url,model_type,api_key_str,proxy_port)
-
-        # 执行Sakura接口测试
-        elif platform == "Sakura":
-            Request_Tester.sakura_request_test(self,user_interface_prompter,base_url,model_type,api_key_str,proxy_port)
-
+        if tag == "sakura":
+            Request_Tester.sakura_request_test(self, user_interface_prompter, api_url, model, api_key, proxy)
+        elif tag == "cohere":
+            Request_Tester.cohere_request_test(self, user_interface_prompter, api_url, model, api_key, proxy)
+        elif tag == "google":
+            Request_Tester.google_request_test(self, user_interface_prompter, api_url, model, api_key, proxy)
+        elif tag == "anthropic":
+            Request_Tester.anthropic_request_test(self, user_interface_prompter, api_url, model, api_key, proxy)
+        elif tag.startswith("custom_platform_") and api_format == "Anthropic":
+            Request_Tester.anthropic_request_test(self, user_interface_prompter, api_url, model, api_key, proxy)
+        else:
+            Request_Tester.openai_request_test(self, user_interface_prompter, api_url, model, api_key, proxy)
 
     # openai接口测试
-    def openai_request_test(self,user_interface_prompter,base_url,model_type,api_key_str,proxy_port):
+    def openai_request_test(self,user_interface_prompter,base_url,model,api_key_str,proxy):
         
         print("[INFO] 正在测试openai类接口",'\n')
 
-        #如果填入地址，则设置系统代理
-        if proxy_port :
-            print("[INFO] 系统代理端口是:",proxy_port,'\n') 
-            os.environ["http_proxy"]=proxy_port
-            os.environ["https_proxy"]=proxy_port
-
-        
         #分割KEY字符串并存储进列表里,如果API_key_str中没有逗号，split(",")方法仍然返回一个只包含一个元素的列表
         API_key_list = api_key_str.replace('\n','').replace(" ", "").split(",")
 
@@ -82,7 +61,7 @@ class Request_Tester():
 
 
         print("[INFO] 请求地址是:",base_url,'\n')
-        print("[INFO] 模型选择是:",model_type,'\n')
+        print("[INFO] 模型选择是:",model,'\n')
 
         #创建存储每个key测试结果的列表
         test_results = [None] * len(API_key_list)
@@ -102,7 +81,7 @@ class Request_Tester():
             #尝试请求，并设置各种参数
             try:
                 response_test = client.chat.completions.create( 
-                model= model_type,
+                model= model,
                 messages = messages_test ,
                 ) 
 
@@ -115,7 +94,7 @@ class Request_Tester():
 
             #如果回复失败，抛出错误信息，并测试下一个key
             except Exception as e:
-                print("\033[1;31mError:\033[0m key：",API_key_list[i],"请求出现问题！错误信息如下")
+                print("[[red]Error[/]] key：",API_key_list[i],"请求出现问题！错误信息如下")
                 print(f"Error: {e}\n\n")
                 test_results[i] = 0 #记录错误结果
                 continue
@@ -139,23 +118,16 @@ class Request_Tester():
 
 
     # google接口测试
-    def google_request_test(self,user_interface_prompter,base_url,model_type,api_key_str,proxy_port):
+    def google_request_test(self,user_interface_prompter,base_url,model,api_key_str,proxy):
 
         print("[INFO] 正在测试Google接口",'\n')
-
-        #如果填入地址，则设置系统代理
-        if proxy_port :
-            print("[INFO] 系统代理端口是:",proxy_port,'\n') 
-            os.environ["http_proxy"]=proxy_port
-            os.environ["https_proxy"]=proxy_port
-
 
         #分割KEY字符串并存储进列表里,如果API_key_str中没有逗号，split(",")方法仍然返回一个只包含一个元素的列表
         API_key_list = api_key_str.replace('\n','').replace(" ", "").split(",")
 
 
         print("[INFO] 请求地址是:",base_url,'\n')
-        print("[INFO] 模型选择是:",model_type,'\n')
+        print("[INFO] 模型选择是:",model,'\n')
 
         # 设置ai参数
         generation_config = {
@@ -204,7 +176,7 @@ class Request_Tester():
 
 
             #设置对话模型
-            model = genai.GenerativeModel(model_name=model_type,
+            model = genai.GenerativeModel(model_name=model,
                             generation_config=generation_config,
                             safety_settings=safety_settings,
                             system_instruction = system_prompt
@@ -224,7 +196,7 @@ class Request_Tester():
 
             #如果回复失败，抛出错误信息，并测试下一个key
             except Exception as e:
-                print("\033[1;31mError:\033[0m key：",API_key_list[i],"请求出现问题！错误信息如下")
+                print("[[red]Error[/]] key：",API_key_list[i],"请求出现问题！错误信息如下")
                 print(f"Error: {e}\n\n")
                 test_results[i] = 0 #记录错误结果
                 continue
@@ -248,16 +220,9 @@ class Request_Tester():
 
 
     # anthropic接口测试
-    def anthropic_request_test(self,user_interface_prompter,base_url,model_type,api_key_str,proxy_port):
+    def anthropic_request_test(self,user_interface_prompter,base_url,model,api_key_str,proxy):
         
         print("[INFO] 正在测试Anthropic接口",'\n')
-
-        #如果填入地址，则设置系统代理
-        if proxy_port :
-            print("[INFO] 系统代理端口是:",proxy_port,'\n') 
-            os.environ["http_proxy"]=proxy_port
-            os.environ["https_proxy"]=proxy_port
-
 
         #分割KEY字符串并存储进列表里,如果API_key_str中没有逗号，split(",")方法仍然返回一个只包含一个元素的列表
         API_key_list = api_key_str.replace('\n','').replace(" ", "").split(",")
@@ -272,7 +237,7 @@ class Request_Tester():
 
 
         print("[INFO] 请求地址是:",base_url,'\n')
-        print("[INFO] 模型选择是:",model_type,'\n')
+        print("[INFO] 模型选择是:",model,'\n')
 
 
         #创建存储每个key测试结果的列表
@@ -294,7 +259,7 @@ class Request_Tester():
             #尝试请求，并设置各种参数
             try:
                 response_test = client.messages.create(
-                model= model_type,
+                model= model,
                 max_tokens=1000,
                 system="你是我的女朋友欣雨。接下来你必须以女朋友的方式回复我",
                 messages = messages_test ,
@@ -311,7 +276,7 @@ class Request_Tester():
 
             #如果回复失败，抛出错误信息，并测试下一个key
             except Exception as e:
-                print("\033[1;31mError:\033[0m key：",API_key_list[i],"请求出现问题！错误信息如下")
+                print("[[red]Error[/]] key：",API_key_list[i],"请求出现问题！错误信息如下")
                 print(f"Error: {e}\n\n")
                 test_results[i] = 0 #记录错误结果
                 continue
@@ -335,17 +300,10 @@ class Request_Tester():
 
 
     # cohere接口测试
-    def cohere_request_test(self,user_interface_prompter,base_url,model_type,api_key_str,proxy_port):
+    def cohere_request_test(self,user_interface_prompter,base_url,model,api_key_str,proxy):
         
         print("[INFO] 正在测试Cohere接口",'\n')
 
-        #如果填入地址，则设置系统代理
-        if proxy_port :
-            print("[INFO] 系统代理端口是:",proxy_port,'\n') 
-            os.environ["http_proxy"]=proxy_port
-            os.environ["https_proxy"]=proxy_port
-
-        
         #分割KEY字符串并存储进列表里,如果API_key_str中没有逗号，split(",")方法仍然返回一个只包含一个元素的列表
         API_key_list = api_key_str.replace('\n','').replace(" ", "").split(",")
 
@@ -356,7 +314,7 @@ class Request_Tester():
 
 
         print("[INFO] 请求地址是:",base_url,'\n')
-        print("[INFO] 模型选择是:",model_type,'\n')
+        print("[INFO] 模型选择是:",model,'\n')
 
         #创建存储每个key测试结果的列表
         test_results = [None] * len(API_key_list)
@@ -377,7 +335,7 @@ class Request_Tester():
             try:
                 response_test = client.chat( 
                 preamble= "你不是AI助手之类，你是我的女朋友欣雨。接下来你必须以女朋友的方式回复我",
-                model= model_type,
+                model= model,
                 message = "小可爱，你在干嘛" ,
                 ) 
 
@@ -390,7 +348,7 @@ class Request_Tester():
 
             #如果回复失败，抛出错误信息，并测试下一个key
             except Exception as e:
-                print("\033[1;31mError:\033[0m key：",API_key_list[i],"请求出现问题！错误信息如下")
+                print("[[red]Error[/]] key：",API_key_list[i],"请求出现问题！错误信息如下")
                 print(f"Error: {e}\n\n")
                 test_results[i] = 0 #记录错误结果
                 continue
@@ -414,17 +372,9 @@ class Request_Tester():
 
 
     # sakura接口测试
-    def sakura_request_test(self,user_interface_prompter,base_url,model_type,api_key_str,proxy_port):
+    def sakura_request_test(self,user_interface_prompter,base_url,model,api_key_str,proxy):
 
         print("[INFO] 正在测试Sakura接口",'\n')
-
-        #如果填入地址，则设置系统代理
-        if proxy_port :
-            print("[INFO] 系统代理端口是:",proxy_port,'\n') 
-            os.environ["http_proxy"]=proxy_port
-            os.environ["https_proxy"]=proxy_port
-
-        
 
         #检查一下请求地址尾部是否为/v1，自动补全
         if base_url[-3:] != "/v1":
@@ -436,7 +386,7 @@ class Request_Tester():
 
 
         print("[INFO] 请求地址是:",base_url,'\n')
-        print("[INFO] 模型选择是:",model_type,'\n')
+        print("[INFO] 模型选择是:",model,'\n')
 
 
 
@@ -448,7 +398,7 @@ class Request_Tester():
         #尝试请求，并设置各种参数
         try:
             response_test = openaiclient.chat.completions.create( 
-            model= model_type,
+            model= model,
             messages = messages_test ,
             ) 
 
@@ -462,7 +412,7 @@ class Request_Tester():
 
         #如果回复失败，抛出错误信息，并测试下一个key
         except Exception as e:
-            print("\033[1;31mError:\033[0m 请求出现问题！错误信息如下")
+            print("[[red]Error[/]] 请求出现问题！错误信息如下")
             print(f"Error: {e}\n\n")
             print("[INFO] 模型通讯测试失败！！！！")
             user_interface_prompter.signal.emit("接口测试结果","测试失败",0)

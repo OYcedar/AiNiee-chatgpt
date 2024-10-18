@@ -1,8 +1,3 @@
-
-import os
-import json
-
-from rich import print
 from PyQt5.Qt import QEvent
 from PyQt5.QtWidgets import QFrame
 from PyQt5.QtWidgets import QFileDialog
@@ -10,14 +5,14 @@ from PyQt5.QtWidgets import QVBoxLayout
 
 from qfluentwidgets import FluentIcon
 
-from Widget.SpinCard import SpinCard
+from AiNieeBase import AiNieeBase
 from Widget.ComboBoxCard import ComboBoxCard
 from Widget.PushButtonCard import PushButtonCard
 
-class ProjectPage(QFrame):
+class ProjectPage(QFrame, AiNieeBase):
 
     DEFAULT = {
-        "translation_platform": "SakuraLLM",
+        "target_platform": "sakura",
         "translation_project": "Mtool导出文件",
         "source_language": "日语",
         "target_language": "简中",
@@ -25,15 +20,13 @@ class ProjectPage(QFrame):
         "label_output_path": "./output",
     }
 
-    def __init__(self, text: str, parent = None, configurator = None):
-        super().__init__(parent = parent)
-
+    def __init__(self, text: str, parent):
+        QFrame.__init__(self, parent)
+        AiNieeBase.__init__(self)
         self.setObjectName(text.replace(" ", "-"))
-        self.configurator = configurator
 
         # 载入配置文件
         config = self.load_config()
-        config = self.save_config(config)
 
         # 设置主容器
         self.container = QVBoxLayout(self)
@@ -58,76 +51,44 @@ class ProjectPage(QFrame):
         if self.on_show_event is not None:
             self.on_show_event(self, event)
 
-    # 载入配置文件
-    def load_config(self) -> dict:
-        config = {}
+    # 获取接口列表
+    def get_items(self, config) -> list:
+        return [v.get("name") for k, v in config.get("platforms").items()]
 
-        if os.path.exists(os.path.join(self.configurator.resource_dir, "config.json")):
-            with open(os.path.join(self.configurator.resource_dir, "config.json"), "r", encoding = "utf-8") as reader:
-                config = json.load(reader)
+    # 通过接口名字获取标签
+    def find_tag_by_name(self, config, name: str) -> str:
+        results = [v.get("tag") for k, v in config.get("platforms").items() if v.get("name") == name]
 
-        return config
-
-    # 保存配置文件
-    def save_config(self, new: dict) -> None:
-        path = os.path.join(self.configurator.resource_dir, "config.json")
-        
-        # 读取配置文件
-        if os.path.exists(path):
-            with open(path, "r", encoding = "utf-8") as reader:
-                old = json.load(reader)
+        if len(results) > 0:
+            return results[0]
         else:
-            old = {}
+            return ""
 
-        # 修改配置文件中的条目：如果条目存在，这更新值，如果不存在，则设置默认值
-        for k, v in self.DEFAULT.items():
-            if not k in new.keys():
-                old[k] = v
-            else:
-                old[k] = new[k]
+    # 通过接口标签获取名字
+    def find_name_by_tag(self, config, tag: str) -> str:
+        results = [v.get("name") for k, v in config.get("platforms").items() if v.get("tag") == tag]
 
-        # 写入配置文件
-        with open(path, "w", encoding = "utf-8") as writer:
-            writer.write(json.dumps(old, indent = 4, ensure_ascii = False))
-
-        return old
+        if len(results) > 0:
+            return results[0]
+        else:
+            return ""
 
     # 模型类型
     def add_widget_01(self, parent, config):
-
-        def get_items(config) -> list:
-            items = [
-                "Cohere",
-                "Google",
-                "OpenAI",
-                "Moonshot",
-                "Deepseek",
-                "Anthropic",
-                "Dashscope",
-                "SakuraLLM",
-                "Volcengine",
-                "智谱",
-                "零一万物",
-                "代理平台A",
-            ]
-
-            for k, v in config.get("additional_platform_dict", {}).items():
-                items.append(v)
-
-            return items
-
+        
         def update_widget(widget):
             config = self.load_config()
 
-            widget.set_items(get_items(config))
-            widget.set_current_index(max(0, widget.find_text(config.get("translation_platform"))))
+            widget.set_items(self.get_items(config))
+            widget.set_current_index(max(0, widget.find_text(self.find_name_by_tag(config, config.get("target_platform")))))
 
-        def widget_init(widget):
+        def init(widget):
             # 注册事件，以确保配置文件被修改后，列表项目可以随之更新
             self.on_show_event = lambda _, event: update_widget(widget)
             
-        def widget_callback(widget, index: int):
-            config["translation_platform"] = widget.get_current_text()
+        def current_text_changed(widget, text: str):
+            config = self.load_config()
+            config["target_platform"] = self.find_tag_by_name(config, text)
             self.save_config(config)
 
         parent.addWidget(
@@ -135,18 +96,19 @@ class ProjectPage(QFrame):
                 "模型类型",
                 "设置当前翻译项目所使用的模型的类型，注意，选择错误将不能进行翻译",
                 [],
-                widget_init,
-                widget_callback,
+                init = init,
+                current_text_changed = current_text_changed,
             )
         )
 
     # 项目类型
     def add_widget_02(self, parent, config):
-        def widget_init(widget):
+        def init(widget):
             widget.set_current_index(max(0, widget.find_text(config.get("translation_project"))))
 
-        def widget_callback(widget, index: int):
-            config["translation_project"] = widget.get_current_text()
+        def current_text_changed(widget, text: str):
+            config = self.load_config()
+            config["translation_project"] = text
             self.save_config(config)
 
         parent.addWidget(
@@ -164,18 +126,19 @@ class ProjectPage(QFrame):
                     "Ainiee缓存文件",
                     "ParaTranz导出文件",
                 ],
-                widget_init,
-                widget_callback,
+                init = init,
+                current_text_changed = current_text_changed,
             )
         )
 
     # 原文语言
     def add_widget_03(self, parent, config):
-        def widget_init(widget):
+        def init(widget):
             widget.set_current_index(max(0, widget.find_text(config.get("source_language"))))
 
-        def widget_callback(widget, index: int):
-            config["source_language"] = widget.get_current_text()
+        def current_text_changed(widget, text: str):
+            config = self.load_config()
+            config["source_language"] = text
             self.save_config(config)
 
         parent.addWidget(
@@ -183,18 +146,19 @@ class ProjectPage(QFrame):
                 "原文语言",
                 "设置当前翻译项目所使用的原始文本的语言，注意，选择错误将不能进行翻译",
                 ["日语", "英语", "韩语", "俄语", "简中", "繁中"],
-                widget_init,
-                widget_callback,
+                init = init,
+                current_text_changed = current_text_changed,
             )
         )
         
     # 译文语言
     def add_widget_04(self, parent, config):
-        def widget_init(widget):
+        def init(widget):
             widget.set_current_index(max(0, widget.find_text(config.get("target_language"))))
 
-        def widget_callback(widget, index: int):
-            config["target_language"] = widget.get_current_text()
+        def current_text_changed(widget, text: str):
+            config = self.load_config()
+            config["target_language"] = text
             self.save_config(config)
 
         parent.addWidget(
@@ -202,8 +166,8 @@ class ProjectPage(QFrame):
                 "译文语言",
                 "设置当前翻译项目所期望的译文文本的语言，注意，选择错误将不能进行翻译",
                 ["简中", "繁中", "日语", "英语", "韩语"],
-                widget_init,
-                widget_callback,
+                init = init,
+                current_text_changed = current_text_changed,
             )
         )
         
@@ -221,9 +185,10 @@ class ProjectPage(QFrame):
                 return
                 
             # 更新UI
-            widget.set_description(f"当前输出文件夹为 {config.get("label_input_path")}")
+            widget.set_description(f"当前输出文件夹为 {path.strip()}")
             
             # 更新并保存配置
+            config = self.load_config()
             config["label_input_path"] = path.strip()
             self.save_config(config)
 
@@ -243,16 +208,17 @@ class ProjectPage(QFrame):
             widget.set_text("选择文件夹")
             widget.set_icon(FluentIcon.FOLDER_ADD)
 
-        def widget_callback(widget, index: int):
+        def widget_callback(widget):
             # 选择文件夹
             path = QFileDialog.getExistingDirectory(None, "选择文件夹", "")
             if path == None or path == "":
                 return
 
             # 更新UI
-            widget.set_description(f"当前输出文件夹为 {config.get("label_output_path")}")
+            widget.set_description(f"当前输出文件夹为 {path.strip()}")
 
             # 更新并保存配置
+            config = self.load_config()
             config["label_output_path"] = path.strip()
             self.save_config(config)
 

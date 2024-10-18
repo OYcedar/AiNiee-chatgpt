@@ -1,4 +1,3 @@
-
 from PyQt5.QtGui import QColor
 from PyQt5.QtWidgets import QHBoxLayout
 from PyQt5.QtWidgets import QVBoxLayout
@@ -10,7 +9,7 @@ from qfluentwidgets import StrongBodyLabel
 
 class SwitchButtonCard(ElevatedCardWidget):
 
-    def __init__(self, title: str, description: str, init = None, on_checked_changed = None):
+    def __init__(self, title: str, description: str, init = None, checked_changed = None):
         super().__init__(None)
         
         # 设置容器
@@ -31,16 +30,19 @@ class SwitchButtonCard(ElevatedCardWidget):
 
         # 填充
         self.container.addStretch(1)
-        
-        # 微调框控件
+
+        # 添加控件
         self.switch_button = SwitchButton()
         self.switch_button.setOnText("")
         self.switch_button.setOffText("")
+        self.container.addWidget(self.switch_button)
 
         if init:
-            init(self.switch_button)
+            init(self)
 
-        if on_checked_changed:
-            self.switch_button.checkedChanged.connect(lambda checked: on_checked_changed(self.switch_button, checked))
+        if checked_changed:
+            self.switch_button.checkedChanged.connect(lambda checked: checked_changed(self, checked))
 
-        self.container.addWidget(self.switch_button)
+    # 设置选中状态
+    def set_checked(self, checked: bool):
+        self.switch_button.setChecked(checked)
